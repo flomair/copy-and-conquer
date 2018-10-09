@@ -3,7 +3,7 @@ var source = `{require('path').resolve()}/templates`,
     destination = `{process.env.INIT_CWD}/templates2`;
 
 console.log(process.argv,require('path').resolve(),process.env.INIT_CWD)
-return 
+
 ncp.limit = 16;
  
 ncp(source, destination, function (err) {
