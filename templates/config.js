@@ -14,7 +14,7 @@ module.exports = {
             "source": "container",
             "destination": "src/views/components",
             
-        
+        },
         "duckWithRemote": {
             "source": "duckWithRemote",
             "destination": "src",
