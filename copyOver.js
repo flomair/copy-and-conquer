@@ -1,5 +1,6 @@
 var ncp = require('ncp').ncp;
-var cwd = require('path').resolve();
+var source = `{require('path').resolve()}/templates`,
+    destination = `{process.env.INIT_CWD}/templates`;
 
 console.log(process.argv,require('path').resolve(),process.env.INIT_CWD)
 return 
