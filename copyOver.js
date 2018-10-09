@@ -1,7 +1,7 @@
 var ncp = require('ncp').ncp;
 var cwd = require('path').resolve();
 
-console.log(process.argv)
+console.log(process.argv,require('path').resolve())
 return 
 ncp.limit = 16;
  
