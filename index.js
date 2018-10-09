@@ -35,6 +35,8 @@ function copyOverOuter(template, modules) {
                     return log
                 }, '')
                 console.log(module, logs, '\n')
+                                if (def.message)
+                    console.warn(def.message, '\n\n');
             })
         })
         .catch(r => console.log(r))
