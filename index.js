@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 const fs = require('fs-extra'),
-    path = require('path');
-
+    path = require('path'),
+    chalk = require('chalk');
+const warning = chalk.keyword('orange');
 
 
 const basePath = process.cwd(),
-    config = require(`${basePath}/templates/config.json`),
+    config = require(`${basePath}/templates/config`),
     [node, file, template, ...modules2] = process.argv;
 
 if (!template || template === 'help' || template === '?') {
@@ -25,19 +26,47 @@ function copyOverOuter(template, modules) {
     const def = config.types[template],
         folder = path.normalize(`${basePath}/templates/${def.source}`);
 
-    copyOver({ replaceString: config.palaceHolder, modules, folder, destination: def.destination })
+    copyOver({ replaceString: config.placeHolder, modules, folder, destination: def.destination })
         .then(result => {
-            console.log(`created form '${template}' template:`)
-            modules.forEach(module => {
+
+            console.log(`\ncreated from '${template}' template:`)
+            const manualInfo = {};
+
+            modules.forEach((module, indexModules) => {
+                if (def.manualInfo) {
+                    def.manualInfo.forEach((info, indexOuter) => {
+                        if (!manualInfo[info.file]) {
+                            manualInfo[info.file] = []
+                        }
+                        info.parts.forEach((part, index) => {
+                            if (!manualInfo[info.file][index])
+                                manualInfo[info.file][index] = [];
+                            manualInfo[info.file][index][indexModules] = replaceTemplateStrings(part, config.placeHolder, module)
+                        })
+
+
+
+
+                    })
+                }
                 const logs = result.reduce((log, line) => {
                     if (line.module === module)
                         log += line.file.replace(basePath, '\n\t');
                     return log
                 }, '')
                 console.log(module, logs, '\n')
-                                if (def.message)
-                    console.warn(def.message, '\n\n');
+                //if (def.message)
+                //console.log(warning(replaceTemplateStrings(def.message, config.placeHolder, module), '\n\n'));
             })
+
+           //console.log(manualInfo)
+            for(info in manualInfo){
+
+                const parts = manualInfo[info].map(part =>part.join('\n\t'))
+                console.log(warning(`update:\n\t${parts.join('\n\n\t')}\nin\n \t${info}\n\n`))
+            }
+
+
         })
         .catch(r => console.log(r))
 }
@@ -57,7 +86,7 @@ async function copyOver({ replaceString, modules, folder, destination }) {
                 outFilename = (file.toLowerCase().includes(replaceString)) ? `${replaceTemplateStrings(file, replaceString, module)}${ext}` : `${file}${ext}`,
                 newFile = `${outPath}/${outFilename}`;
 
-                let newText = replaceTemplateStrings(text, replaceString, module);
+            let newText = replaceTemplateStrings(text, replaceString, module);
 
 
             writes.push(writeFile({ module, outPath, newFile, newText }))
@@ -86,12 +115,12 @@ async function writeFile({ module, outPath, newFile, newText }) {
     return { module, file }
 }
 
-function capitalizeFirstLetter(string,at=0) {
+function capitalizeFirstLetter(string, at = 0) {
     return string.charAt(at).toUpperCase() + string.slice(1);
 }
 
 function capitalizeFirstLetterReplaceString(string) {
-    return '$' +string.charAt(1).toUpperCase() + string.slice(2);
+    return '$' + string.charAt(1).toUpperCase() + string.slice(2);
 }
 
 function walk(dir) {
