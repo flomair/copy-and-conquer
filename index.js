@@ -1,77 +1,63 @@
-const program = require('commander');
-//import walk from 'fs-walk';
-import fs from 'fs-extra';
-import path from 'path';
+#!/usr/bin/env node
+const fs = require('fs-extra'),
+    path = require('path');
 
-//import config from './config';
+
 
 const basePath = process.cwd(),
-    config = require(`${basePath}/templates/config.js`).default,
-    files = [];
-let modules;
+    config = require(`${basePath}/templates/config.json`),
+    [node, file, template, ...modules2] = process.argv;
 
-program
-    // .version('0.1.0')
-    .arguments('[args...]')
-    // .option('-c, --class', 'Add peppers')
-    .option('-t, --template <type>', 'template from templates Folder', config.defaultType)
-    //.option('-b, --bbq-sauce', 'Add bbq sauce')
-    .action(function (args) {
-        // console.log(args)
-        modules = args;
-    });
+if (!template || template === 'help' || template === '?') {
+    const types = Object.keys(config.types);
+    console.log('Tempates : ', types.join(", "))
+    return
+}
 
+copyOverOuter(template, modules2)
 
+function copyOverOuter(template, modules) {
 
-
-program.parse(['dsad', 'adsd', 'adsd', 'adsd2', 'asdasd']);
-
-
-//console.log(program.template)
-
-copyOverOuter()
-
-function copyOverOuter() {
-    //console.log(config,program.template)
-    if (!config.types[program.template]) {
-        console.warn(`folder for template ${program.template} does not exist`)
+    if (!config.types[template]) {
+        console.warn(`folder for template ${template} does not exist`)
         return;
     }
-    const def = config.types[program.template],
-        folder = `${basePath}/templates/${def.source}`;
+    const def = config.types[template],
+        folder = path.normalize(`${basePath}/templates/${def.source}`);
 
-    copyOver({ replaceSting: config.palaceHolder, modules, folder, destination: def.destination })
+    copyOver({ replaceString: config.palaceHolder, modules, folder, destination: def.destination })
         .then(result => {
-            console.log(`created form '${program.template}' template:\n`)
+            console.log(`created form '${template}' template:`)
             modules.forEach(module => {
                 const logs = result.reduce((log, line) => {
-                    console.log(line.file)
                     if (line.module === module)
                         log += line.file.replace(basePath, '\n\t');
                     return log
                 }, '')
-                console.log(module, logs,'\n')
+                console.log(module, logs, '\n')
             })
         })
         .catch(r => console.log(r))
 }
 
-async function copyOver({ replaceSting, modules, folder, destination }) {
-    //console.log(replaceSting, modules, folder, destination)
+async function copyOver({ replaceString, modules, folder, destination }) {
+    // console.log(replaceString, replaceString.toUpperCase(), modules, folder, destination)
     const writes = [],
         files = await walk(folder),
         contentPre = await Promise.all(files.map(file => fs.readFile(file, 'utf8')));
 
     modules.forEach(module => {
-
         contentPre.map(async (text, index) => {
             const tempPath = path.dirname(files[index]).replace(folder, ''),
                 ext = path.extname(files[index]),
                 file = path.basename(files[index], ext),
-                outPath = `${basePath}/${destination}/${module}${tempPath}`,
-                outFilename = `${capitalizeFirstLetter(module)}${capitalizeFirstLetter(file)}${ext}`,
-                newFile = `${outPath}/${outFilename}`,
-                newText = text.replace(`/${replaceSting}g/`, module);
+                outPath = (tempPath.toLowerCase().includes(replaceString) || file.toLowerCase().includes(replaceString)) ? `${basePath}/${destination}/${replaceTemplateStrings(tempPath, replaceString, module)}` : `${basePath}/${destination}/${module}${tempPath}`,
+                outFilename = (file.toLowerCase().includes(replaceString)) ? `${replaceTemplateStrings(file, replaceString, module)}${ext}` : `${file}${ext}`,
+                newFile = `${outPath}/${outFilename}`;
+
+                let newText = replaceTemplateStrings(text, replaceString, module);
+
+
             writes.push(writeFile({ module, outPath, newFile, newText }))
         })
 
@@ -80,14 +66,30 @@ async function copyOver({ replaceSting, modules, folder, destination }) {
 
 }
 
-async function writeFile({ module, outPath, newFile, newText }) {
-    await fs.ensureDir(outPath)
-    await fs.writeFile(newFile, newText, 'utf8')
-    return { module, file: newFile }
+
+function replaceTemplateStrings(text, replaceString, module) {
+
+    return text
+        .split(replaceString).join(module)
+        .split(replaceString.toUpperCase()).join(module.toUpperCase())
+        .split(capitalizeFirstLetterReplaceString(replaceString)).join(capitalizeFirstLetter(module))
 }
 
-function capitalizeFirstLetter(string) {
-    return string.charAt(0).toUpperCase() + string.slice(1);
+async function writeFile({ module, outPath, newFile, newText }) {
+    const from = path.normalize(outPath),
+        file = path.normalize(newFile);
+    //console.log(from, file)
+    await fs.ensureDir(from)
+    await fs.writeFile(file, newText, 'utf8')
+    return { module, file }
+}
+
+function capitalizeFirstLetter(string,at=0) {
+    return string.charAt(at).toUpperCase() + string.slice(1);
+}
+
+function capitalizeFirstLetterReplaceString(string) {
+    return '$' +string.charAt(1).toUpperCase() + string.slice(2);
 }
 
 function walk(dir) {
